@@ -32,5 +32,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: starsis-lite-apk
-          path: build/apk/app-release.apk
+          name: starsis-apk
+          path: "**/*.apk"
