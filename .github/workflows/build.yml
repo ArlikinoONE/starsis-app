@@ -4,7 +4,6 @@ on: [push, workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
@@ -13,7 +12,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Setup Java 17
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -24,21 +23,14 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Install Dependencies
-        run: |
-          pip install --upgrade pip
-          pip install flet
-          # Устанавливаем skyfield, чтобы pip скачал зависимости
-          pip install skyfield
+      - name: Install Flet
+        run: pip install flet
 
       - name: Build APK
-        # Используем --mobile-graphics, чтобы включить поддержку OpenGL
-        # И самое главное - НЕ используем --include-packages для numpy,
-        # пусть Flet сам попробует найти совместимую версию
         run: flet build apk --verbose
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: starsis-apk
+          name: starsis-lite-apk
           path: build/apk/app-release.apk
