@@ -4,6 +4,10 @@ on: [push, workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
+    # <<< ВОТ ЭТО ГЛАВНОЕ ИСПРАВЛЕНИЕ. Отключаем strip, который ломает numpy
+    env:
+      SERIOUS_PYTHON_NO_STRIP: 1
+
     steps:
       - uses: actions/checkout@v4
 
@@ -27,7 +31,8 @@ jobs:
         run: pip install flet
 
       - name: Build APK
-        run: flet build apk --verbose --include-packages skyfield numpy scipy sgp4 jplephem certifi
+        # <<< УБРАЛ scipy. Он не нужен skyfield и ломает сборку.
+        run: flet build apk --verbose --include-packages skyfield numpy sgp4 jplephem certifi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
