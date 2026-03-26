@@ -4,10 +4,24 @@ import warnings
 import asyncio
 from skyfield.api import Star, load, Topos
 
-warnings.filterwarnings("ignore", category=DeprecationWarning)
+import os # Не забудьте этот импорт!
 
+# ... (ваши импорты)
+
+# Получаем путь к папке assets внутри телефона
+assets_path = os.path.join(os.path.dirname(__file__), "assets")
+bsp_path = os.path.join(assets_path, "de421.bsp")
+
+# Загружаем данные
 ts = load.timescale()
-planets_data = load('de421.bsp')
+
+# Проверяем, есть ли файл, и загружаем
+if os.path.exists(bsp_path):
+    planets_data = load(bsp_path)
+else:
+    # Если файла нет, пытаемся скачать (резервный вариант)
+    planets_data = load('de421.bsp')
+
 earth = planets_data['earth']
 
 # --- БАЗЫ ДАННЫХ (Звезды, Галактики, Туманности, Скопления) ---
