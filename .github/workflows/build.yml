@@ -4,17 +4,12 @@ on: [push, workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
-    # Отключаем "зачистку" numpy, которая ломала сборку
+    # Эта настройка запрещает ломать библиотеку numpy при сборке
     env:
       SERIOUS_PYTHON_NO_STRIP: 1
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
@@ -27,15 +22,17 @@ jobs:
         with:
           channel: 'stable'
 
-      # <<< ВОТ ЭТОТ ШАГ РЕШАЕТ ТВОЮ ОШИБКУ
-      - name: Accept Android licenses
-        run: yes | sdkmanager --licenses
+      # ИСПРАВЛЕНИЕ ОШИБКИ 127 И ЛИЦЕНЗИЙ:
+      # Используем flutter doctor, он точно установлен
+      - name: Accept Android Licenses
+        run: yes | flutter doctor --android-licenses
 
       - name: Install Flet
         run: pip install flet
 
       - name: Build APK
-        run: flet build apk --verbose --include-packages skyfield numpy sgp4 jplephem certifi
+        # --include-packages принудительно добавляет skyfield и numpy
+        run: flet build apk --verbose --include-packages skyfield numpy sgp4 jplephem certifi platformdirs
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
