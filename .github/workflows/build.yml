@@ -7,36 +7,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Build Flet APK
+        uses: flet-dev/flet-build@v1
         with:
           python-version: '3.11'
-
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
-
-      - name: Install Python dependencies
-        run: |
-          pip install --upgrade pip
-          pip install flet skyfield
-
-      - name: Accept Android licenses
-        run: yes | flutter doctor --android-licenses
-
-      - name: Build APK
-        run: flet build apk --verbose
+          platforms: 'android'
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: starsis-app
+          name: starsis-apk
           path: build/apk/app-release.apk
