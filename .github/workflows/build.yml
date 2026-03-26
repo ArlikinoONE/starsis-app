@@ -4,36 +4,41 @@ on: [push, workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
+    # Отключаем "зачистку" numpy, которая ломала сборку
+    env:
+      SERIOUS_PYTHON_NO_STRIP: 1
+
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'  # <-- Используем Python 3.11
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-    - name: Install Dependencies
-      run: |
-        pip install --upgrade pip
-        pip install --no-cache-dir flet skyfield
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
-    - name: Setup Flutter
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: '3.19.5'
-        channel: stable
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
 
-    - name: Install Android dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y openjdk-17-jdk
-        flutter doctor --android-licenses
+      # <<< ВОТ ЭТОТ ШАГ РЕШАЕТ ТВОЮ ОШИБКУ
+      - name: Accept Android licenses
+        run: yes | sdkmanager --licenses
 
-    - name: Build APK
-      run: flet build apk --module-name main --verbose
+      - name: Install Flet
+        run: pip install flet
 
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: starsis-app
-        path: build/apk/app-release.apk
+      - name: Build APK
+        run: flet build apk --verbose --include-packages skyfield numpy sgp4 jplephem certifi
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: starsis-apk
+          path: build/apk/app-release.apk
