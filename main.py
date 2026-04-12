@@ -3,12 +3,12 @@ import math
 import asyncio
 from datetime import datetime, timezone
 
+
 # ================================================================
-#  АСТРОНОМИЧЕСКИЕ ВЫЧИСЛЕНИЯ (замена skyfield — только stdlib)
+#  АСТРОНОМИЧЕСКИЕ ВЫЧИСЛЕНИЯ
 # ================================================================
 
 def _jd(dt=None):
-    """Юлианская дата из UTC-datetime."""
     if dt is None:
         dt = datetime.now(timezone.utc)
     y, m = dt.year, dt.month
@@ -24,7 +24,6 @@ def _jd(dt=None):
 
 
 def _gmst(jd):
-    """Гринвичское среднее звёздное время (°)."""
     T = (jd - 2451545.0) / 36525.0
     return (280.46061837
             + 360.98564736629 * (jd - 2451545.0)
@@ -33,7 +32,6 @@ def _gmst(jd):
 
 
 def radec_to_altaz(ra_h, dec_d, lat, lon):
-    """RA (ч) / Dec (°)  +  широта / долгота  →  (alt°, az°)."""
     jd = _jd()
     lst = (_gmst(jd) + lon) % 360
     ha = math.radians(lst - ra_h * 15)
@@ -48,7 +46,7 @@ def radec_to_altaz(ra_h, dec_d, lat, lon):
     return math.degrees(alt), math.degrees(az)
 
 
-# --- Орбитальные элементы планет (J2000 + скорости/столетие, JPL) ---
+# --- Орбитальные элементы планет (J2000, JPL) ---
 _ELEMS = {
     "MERCURY": {
         "a": (0.38709927, 3.7e-7),     "e": (0.20563593, 1.906e-5),
@@ -74,11 +72,20 @@ _ELEMS = {
         "a": (9.53667594, -1.251e-3),  "e": (0.05386179, -5.099e-4),
         "I": (2.48599187, 1.936e-3),    "O": (113.66242448, -0.28868),
         "w": (92.59887831, -0.41897),   "L": (49.95424423, 1222.494)},
+    # --- Уран ---
+    "URANUS BARYCENTER": {
+        "a": (19.18916464, -1.961e-4), "e": (0.04725744, -4.397e-5),
+        "I": (0.77263783,  -2.424e-4),  "O": (74.01692503,  0.04240),
+        "w": (170.95427630, 0.40878),   "L": (313.23810451,  428.483)},
+    # --- Нептун ---
+    "NEPTUNE BARYCENTER": {
+        "a": (30.06992276,  3.362e-4), "e": (0.00859048,  5.105e-5),
+        "I": (1.77004347,  -1.535e-5),  "O": (131.78422574, -0.00795),
+        "w": (44.96476227, -0.32473),   "L": (-55.12002969,  218.460)},
 }
 
 
 def _kepler(M_deg, e):
-    """Решение уравнения Кеплера  M = E − e·sin E."""
     M = math.radians(M_deg % 360)
     E = M
     for _ in range(60):
@@ -90,7 +97,6 @@ def _kepler(M_deg, e):
 
 
 def _helio(pid, T):
-    """Гелиоцентрические эклиптические x y z (а.е.)."""
     el = _ELEMS[pid]
     a  = el["a"][0] + el["a"][1] * T
     e  = el["e"][0] + el["e"][1] * T
@@ -107,17 +113,16 @@ def _helio(pid, T):
     cI, sI = math.cos(Ir), math.sin(Ir)
     x = (cw*cO - sw*sO*cI)*xp + (-sw*cO - cw*sO*cI)*yp
     y = (cw*sO + sw*cO*cI)*xp + (-sw*sO + cw*cO*cI)*yp
-    z = (sw*sI)*xp            + (cw*sI)*yp
+    z = (sw*sI)*xp             + (cw*sI)*yp
     return x, y, z
 
 
 def planet_radec(pid):
-    """Приближённые RA (ч) и Dec (°) планеты на текущий момент."""
     jd = _jd()
     T  = (jd - 2451545.0) / 36525.0
     xp, yp, zp = _helio(pid, T)
-    xe, ye, ze = _helio("EARTH", T)
-    xg, yg, zg = xp - xe, yp - ye, zp - ze
+    xe, ye, ze  = _helio("EARTH", T)
+    xg, yg, zg  = xp - xe, yp - ye, zp - ze
     eps = math.radians(23.4393 - 3.563e-7 * (jd - 2451545.0))
     xeq = xg
     yeq = yg * math.cos(eps) - zg * math.sin(eps)
@@ -128,7 +133,7 @@ def planet_radec(pid):
 
 
 # ================================================================
-#  БАЗЫ ДАННЫХ  (Звёзды, Галактики, Туманности, Скопления)
+#  БАЗЫ ДАННЫХ
 # ================================================================
 RAW_STARS = [
     ("Полярная","Малая Медведица",37.95,89.26,431),("Вега","Лира",279.23,38.78,25.04),
@@ -167,7 +172,8 @@ RAW_STARS = [
     ("Изар","Волопас",221.24,27.07,210),
 ]
 RAW_GALAXIES = [
-    ("Андромеда","Андромеда",10.68,41.27,2540000),("Треугольник","Треугольник",23.46,30.66,3000000),
+    ("Андромеда","Андромеда",10.68,41.27,2540000),
+    ("Треугольник","Треугольник",23.46,30.66,3000000),
     ("M81 (Боде)","Большая Медведица",148.88,69.07,11800000),
     ("M82 (Сигара)","Большая Медведица",148.96,69.68,11500000),
     ("M51 (Водоворот)","Гончие Псы",202.73,47.19,23000000),
@@ -188,19 +194,28 @@ RAW_CLUSTERS = [
     ("Плеяды","Телец",56.75,24.11,444),("Гиады","Телец",66.75,15.86,153),
     ("Ясли","Рак",130.10,19.66,577),("M13","Геркулес",250.42,36.46,22200),
     ("Омега Центавра","Центавр",201.69,-47.48,15800),("Тукан 47","Тукан",6.02,-72.08,13000),
-    ("M22","Стреле��",279.10,-23.90,10600),("h/χ Персея","Персей",35.15,57.15,7500),
+    ("M22","Стрелец",279.10,-23.90,10600),("h/χ Персея","Персей",35.15,57.15,7500),
     ("Дикая Утка","Щит",282.75,-6.27,6200),
 ]
 
-STARS    = {s[0]: {"ra":s[2]/15,"dec":s[3],"dist":s[4],"const":s[1],"type":"ЗВЕЗДА",   "color":"#00FFCC"} for s in RAW_STARS}
-GALAXIES = {g[0]: {"ra":g[2]/15,"dec":g[3],"dist":g[4],"const":g[1],"type":"ГАЛАКТИКА","color":"#FF00FF"} for g in RAW_GALAXIES}
-NEBULAE  = {n[0]: {"ra":n[2]/15,"dec":n[3],"dist":n[4],"const":n[1],"type":"ТУМАННОСТЬ","color":"#4488FF"} for n in RAW_NEBULAE}
-CLUSTERS = {c[0]: {"ra":c[2]/15,"dec":c[3],"dist":c[4],"const":c[1],"type":"СКОПЛЕНИЕ","color":"#FFAA00"} for c in RAW_CLUSTERS}
+STARS    = {s[0]: {"ra":s[2]/15,"dec":s[3],"dist":s[4],"const":s[1],
+                   "type":"ЗВЕЗДА","color":"#00FFCC","emoji":"⭐"} for s in RAW_STARS}
+GALAXIES = {g[0]: {"ra":g[2]/15,"dec":g[3],"dist":g[4],"const":g[1],
+                   "type":"ГАЛАКТИКА","color":"#FF00FF","emoji":"🌌"} for g in RAW_GALAXIES}
+NEBULAE  = {n[0]: {"ra":n[2]/15,"dec":n[3],"dist":n[4],"const":n[1],
+                   "type":"ТУМАННОСТЬ","color":"#4488FF","emoji":"🌫️"} for n in RAW_NEBULAE}
+CLUSTERS = {c[0]: {"ra":c[2]/15,"dec":c[3],"dist":c[4],"const":c[1],
+                   "type":"СКОПЛЕНИЕ","color":"#FFAA00","emoji":"✨"} for c in RAW_CLUSTERS}
 
+# ---- Планеты: имя → (internal_id, emoji, цвет) ----
 PLANETS_NAMES = {
-    "Меркурий": "MERCURY", "Венера": "VENUS",
-    "Марс": "MARS", "Юпитер": "JUPITER BARYCENTER",
-    "Сатурн": "SATURN BARYCENTER",
+    "Меркурий": ("MERCURY",           "☿",  "#A0A0A0"),
+    "Венера":   ("VENUS",             "♀",  "#FFDD88"),
+    "Марс":     ("MARS",              "♂",  "#FF4422"),
+    "Юпитер":   ("JUPITER BARYCENTER","🪐", "#FFAA66"),
+    "Сатурн":   ("SATURN BARYCENTER", "🪐", "#FFD580"),
+    "Уран":     ("URANUS BARYCENTER", "🔵", "#88DDFF"),
+    "Нептун":   ("NEPTUNE BARYCENTER","🔷", "#4455FF"),
 }
 
 
@@ -231,12 +246,12 @@ async def main(page: ft.Page):
                     if current_obj["type"] == "planet":
                         ra_h, dec_d = planet_radec(current_obj["id"])
                     else:
-                        ra_h = float(current_obj["ra"])
+                        ra_h  = float(current_obj["ra"])
                         dec_d = float(current_obj["dec"])
                     alt, az = radec_to_altaz(
                         ra_h, dec_d,
                         float(my_lat), float(my_lon))
-                    vis = "ВИДИМО" if alt > 0 else "СКРЫТО"
+                    vis = "ВИДИМО 🟢" if alt > 0 else "СКРЫТО 🔴"
                     st_live.value = (
                         f"СЕЙЧАС: {vis}\n"
                         f"Высота: {alt:.4f}°\n"
@@ -287,14 +302,19 @@ async def main(page: ft.Page):
     universe_list = ft.ListView(expand=True)
 
     def add_to_list(name, data, obj_type, obj_id=None):
+        type_label = data.get("type", "ПЛАНЕТА")
+        emoji      = data.get("emoji", "🪐")
+        color      = data.get("color", "#FFCC00")
+
         universe_list.controls.append(ft.Container(
             content=ft.Row([
-                ft.Text(name, size=18, weight="bold"),
-                ft.Text(data.get("type", "ПЛАНЕТА"),
-                        size=10,
-                        color=data.get("color", "#FFCC00")),
+                ft.Text(name, size=16, weight="bold", expand=True),
+                ft.Row([
+                    ft.Text(emoji, size=18),
+                    ft.Text(type_label, size=10, color=color),
+                ], spacing=4),
             ], alignment="spaceBetween"),
-            padding=ft.padding.symmetric(horizontal=20),
+            padding=ft.padding.symmetric(horizontal=16, vertical=8),
             height=60,
             border=ft.border.all(1, "white12"),
             border_radius=10, margin=5, bgcolor="#111111",
@@ -303,12 +323,19 @@ async def main(page: ft.Page):
                              ot, oi, d.get("const", "")),
         ))
 
-    # планеты
-    for p_name, p_id in PLANETS_NAMES.items():
+    # ---- планеты ----
+    for p_name, (p_id, p_emoji, p_color) in PLANETS_NAMES.items():
         try:
             ra_h, dec_d = planet_radec(p_id)
             add_to_list(p_name,
-                        {"ra": ra_h, "dec": dec_d},
+                        {
+                            "ra":    ra_h,
+                            "dec":   dec_d,
+                            "type":  "ПЛАНЕТА",
+                            "color": p_color,
+                            "emoji": p_emoji,
+                            "const": "",
+                        },
                         "planet", p_id)
         except Exception:
             pass
@@ -321,80 +348,103 @@ async def main(page: ft.Page):
     # ---------- калькулятор ----------
     calc_res = ft.Text("Результат появится здесь",
                        color="#00FFCC", italic=True)
-    ra1   = ft.TextField(label="Ra 1 (ч)", expand=True)
-    dec1  = ft.TextField(label="Dec 1 (°)", expand=True)
-    ra2   = ft.TextField(label="Ra 2 (ч)", expand=True)
-    dec2  = ft.TextField(label="Dec 2 (°)", expand=True)
-    ra1_3 = ft.TextField(label="Ra 1", expand=True)
-    dec1_3= ft.TextField(label="Dec 1", expand=True)
-    pc1   = ft.TextField(label="Pc 1", expand=True)
-    ra2_3 = ft.TextField(label="Ra 2", expand=True)
-    dec2_3= ft.TextField(label="Dec 2", expand=True)
-    pc2   = ft.TextField(label="Pc 2", expand=True)
-    par_in= ft.TextField(label="arcsec", expand=True)
+    ra1    = ft.TextField(label="Ra 1 (ч)", expand=True)
+    dec1   = ft.TextField(label="Dec 1 (°)", expand=True)
+    ra2    = ft.TextField(label="Ra 2 (ч)", expand=True)
+    dec2   = ft.TextField(label="Dec 2 (°)", expand=True)
+    ra1_3  = ft.TextField(label="Ra 1", expand=True)
+    dec1_3 = ft.TextField(label="Dec 1", expand=True)
+    pc1    = ft.TextField(label="Pc 1", expand=True)
+    ra2_3  = ft.TextField(label="Ra 2", expand=True)
+    dec2_3 = ft.TextField(label="Dec 2", expand=True)
+    pc2    = ft.TextField(label="Pc 2", expand=True)
+    par_in = ft.TextField(label="arcsec", expand=True)
 
     def calc_angle(_):
         try:
-            d1, d2 = math.radians(float(dec1.value)), math.radians(float(dec2.value))
+            d1  = math.radians(float(dec1.value))
+            d2  = math.radians(float(dec2.value))
             dra = math.radians((float(ra1.value) - float(ra2.value)) * 15)
-            cos_a = math.sin(d1)*math.sin(d2) + math.cos(d1)*math.cos(d2)*math.cos(dra)
-            calc_res.value = f"Угол: {math.degrees(math.acos(max(-1,min(1,cos_a)))):.4f}°"
+            cos_a = (math.sin(d1)*math.sin(d2)
+                     + math.cos(d1)*math.cos(d2)*math.cos(dra))
+            calc_res.value = (
+                f"📐 Угол: "
+                f"{math.degrees(math.acos(max(-1, min(1, cos_a)))):.4f}°")
         except Exception as ex:
-            calc_res.value = f"Ошибка: {ex}"
+            calc_res.value = f"❌ Ошибка: {ex}"
         page.update()
 
     def calc_3d(_):
         try:
             r1, r2 = float(pc1.value), float(pc2.value)
-            a1, a2 = math.radians(float(ra1_3.value)*15), math.radians(float(ra2_3.value)*15)
-            dd1, dd2 = math.radians(float(dec1_3.value)), math.radians(float(dec2_3.value))
-            dx = r2*math.cos(dd2)*math.cos(a2) - r1*math.cos(dd1)*math.cos(a1)
-            dy = r2*math.cos(dd2)*math.sin(a2) - r1*math.cos(dd1)*math.sin(a1)
-            dz = r2*math.sin(dd2) - r1*math.sin(dd1)
-            calc_res.value = f"3D Расст: {math.sqrt(dx*dx+dy*dy+dz*dz):.2f} пк"
+            a1  = math.radians(float(ra1_3.value)*15)
+            a2  = math.radians(float(ra2_3.value)*15)
+            dd1 = math.radians(float(dec1_3.value))
+            dd2 = math.radians(float(dec2_3.value))
+            dx  = r2*math.cos(dd2)*math.cos(a2) - r1*math.cos(dd1)*math.cos(a1)
+            dy  = r2*math.cos(dd2)*math.sin(a2) - r1*math.cos(dd1)*math.sin(a1)
+            dz  = r2*math.sin(dd2) - r1*math.sin(dd1)
+            calc_res.value = (
+                f"📏 3D Расст: "
+                f"{math.sqrt(dx*dx+dy*dy+dz*dz):.2f} пк")
         except Exception as ex:
-            calc_res.value = f"Ошибка: {ex}"
+            calc_res.value = f"❌ Ошибка: {ex}"
         page.update()
 
     def calc_par(_):
         try:
-            calc_res.value = f"Расст: {1/float(par_in.value):.2f} пк"
+            calc_res.value = f"🔭 Расст: {1/float(par_in.value):.2f} пк"
         except Exception as ex:
-            calc_res.value = f"Ошибка: {ex}"
+            calc_res.value = f"❌ Ошибка: {ex}"
         page.update()
 
-    calc_view = ft.Column([
-        ft.Text("1. УГЛОВОЕ РАССТОЯНИЕ", color="#00FFCC", weight="bold"),
+    calc_items = ft.Column([
+        ft.Text("📐 1. УГЛОВОЕ РАССТОЯНИЕ", color="#00FFCC", weight="bold"),
         ft.Container(ft.Row([ra1, dec1])),
         ft.Container(ft.Row([ra2, dec2])),
-        ft.ElevatedButton("Считать угол", on_click=calc_angle, bgcolor="#1a1a1a"),
+        ft.ElevatedButton("Считать угол", on_click=calc_angle,
+                          bgcolor="#1a1a1a"),
         ft.Divider(color="white12"),
-        ft.Text("2. 3D ДИСТАНЦИЯ", color="#00FFCC", weight="bold"),
+        ft.Text("📏 2. 3D ДИСТАНЦИЯ", color="#00FFCC", weight="bold"),
         ft.Container(ft.Row([ra1_3, dec1_3, pc1])),
         ft.Container(ft.Row([ra2_3, dec2_3, pc2])),
-        ft.ElevatedButton("Считать 3D", on_click=calc_3d, bgcolor="#1a1a1a"),
+        ft.ElevatedButton("Считать 3D", on_click=calc_3d,
+                          bgcolor="#1a1a1a"),
         ft.Divider(color="white12"),
-        ft.Text("3. ПАРАЛЛАКС", color="#00FFCC", weight="bold"),
+        ft.Text("🔭 3. ПАРАЛЛАКС", color="#00FFCC", weight="bold"),
         ft.Container(ft.Row([par_in,
                              ft.ElevatedButton("ОК", on_click=calc_par)])),
         ft.Container(calc_res, padding=15,
                      border=ft.border.all(1, "#00FFCC"),
                      border_radius=10, width=380),
-    ], visible=False, horizontal_alignment="center", scroll="auto")
+        ft.Container(height=20),
+    ], horizontal_alignment="center")
+
+    calc_scroll = ft.ListView(
+        controls=[calc_items],
+        expand=True,
+        padding=ft.padding.symmetric(horizontal=16, vertical=12),
+    )
+
+    calc_view = ft.Container(
+        content=calc_scroll,
+        expand=True,
+        visible=False,
+    )
 
     # ---------- вкладки ----------
     def switch_tab(e):
         is_cat = e.control.data == "cat"
         universe_list.visible = is_cat
-        calc_view.visible = not is_cat
-        btn_cat.bgcolor  = "#1a1a1a" if is_cat else "#000000"
+        calc_view.visible     = not is_cat
+        btn_cat.bgcolor  = "#1a1a1a" if is_cat     else "#000000"
         btn_calc.bgcolor = "#1a1a1a" if not is_cat else "#000000"
         page.update()
 
-    btn_cat = ft.Container(content=ft.Text("⭐ Каталог"),
-                           expand=True, alignment=center_pos,
-                           on_click=switch_tab, data="cat",
-                           bgcolor="#1a1a1a")
+    btn_cat  = ft.Container(content=ft.Text("⭐ Каталог"),
+                            expand=True, alignment=center_pos,
+                            on_click=switch_tab, data="cat",
+                            bgcolor="#1a1a1a")
     btn_calc = ft.Container(content=ft.Text("🧮 Расчеты"),
                             expand=True, alignment=center_pos,
                             on_click=switch_tab, data="calc")
@@ -405,8 +455,12 @@ async def main(page: ft.Page):
                             weight="bold", color="#00FFCC"),
             padding=20, alignment=center_pos),
         ft.Container(
-            content=ft.Column([universe_list, calc_view], expand=True),
-            expand=True),
+            content=ft.Column(
+                [universe_list, calc_view],
+                expand=True,
+            ),
+            expand=True,
+        ),
         ft.Container(
             ft.Row([btn_cat, btn_calc], spacing=0),
             height=70,
@@ -418,5 +472,4 @@ async def main(page: ft.Page):
 
 
 if __name__ == "__main__":
-    ft.app(target=main)
     ft.app(target=main)
